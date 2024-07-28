@@ -1,47 +1,69 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-# إنشاء تطبيق FastAPI
+import sqlite3
+from typing import List
+
+# Création de la base de données
+conn = sqlite3.connect('students.db')
+cursor = conn.cursor()
+
+# Création de la table des étudiants
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS students (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        grade INTEGER NOT NULL
+    )
+''')
+
+# Fermeture de la connexion
+conn.close()
+
+# Création de l'application FastAPI
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],  # يسمح بالوصول من أي مصدر. قم بتقييد هذا في الإنتاج
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
-)
-# تعريف نموذج البيانات باستخدام Pydantic
+
+# Définition du modèle de données pour un étudiant
 class Student(BaseModel):
-  id: int
-  name: str
-  grade: int
-# قائمة لتخزين البيانات في الذاكرة
-students = [
-  Student(id=1,name="karim ali",grade=5),
-  Student(id=2,name="khadija ahmed",grade=3),
-]
-# قراءة جميع العناصر
-@app.get("/students/")
+    id: int
+    name: str
+    grade: int
+
+# Liste des étudiants
+@app.get("/students/", response_model=List[Student])
 def read_students():
-  return students
-# إنشاء عنصر جديد
-@app.post("/students/")
-def create_student(New_Student: Student):
-  students.append(New_Student)
-  return New_Student
-# تحديث عنصر معين بناءً على معرفه (ID) باستخدام PUT method
-@app.put("/students/{student_id}")
-def update_student(student_id: int, updated_student: Student):
-  for index, student in enumerate(students):
-      if student.id == student_id:
-          students[index] = updated_student
-          return updated_student
-  return {"error": "Student not found"}
-# حذف عنصر معين بناءً على معرفه (ID) باستخدام DELETE method
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM students")
+    students = cursor.fetchall()
+    conn.close()
+    return students
+
+# Création d'un nouvel étudiant
+@app.post("/students/", response_model=Student)
+def create_student(student: Student):
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO students (name, grade) VALUES (?, ?)", (student.name, student.grade))
+    conn.commit()
+    conn.close()
+    return student
+
+# Mise à jour d'un étudiant
+@app.put("/students/{student_id}", response_model=Student)
+def update_student(student_id: int, student: Student):
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    cursor.execute("UPDATE students SET name = ?, grade = ? WHERE id = ?", (student.name, student.grade, student_id))
+    conn.commit()
+    conn.close()
+    return student
+
+# Suppression d'un étudiant
 @app.delete("/students/{student_id}")
 def delete_student(student_id: int):
-  for index, student in enumerate(students):
-      if student.id == student_id:
-          del students[index]
-          return {"message": "Student deleted"}
-  return {"error": "Student not found"}
+    conn = sqlite3.connect('students.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM students WHERE id = ?", (student_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Étudiant supprimé"}
