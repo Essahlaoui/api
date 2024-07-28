@@ -1,4 +1,4 @@
-fastapi==0.65.2
-pydantic==1.8.2
-sqlite3==3.32.3
-uvicorn==0.13.4
+fastapi
+pydantic
+sqlite3
+uvicorn
